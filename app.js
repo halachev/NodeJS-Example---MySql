@@ -16,62 +16,110 @@ fu.get("/style.css", fu.staticHandler("style.css"));
 fu.get("/client.js", fu.staticHandler("client.js"));
 fu.get("/jquery-1.2.6.min.js", fu.staticHandler("jquery-1.2.6.min.js"));
 
-var messages;
+var data = [];
 
-Init();
-
-function Init()
-{
-	var connection = mysql.createConnection(
-    {
-      host     : 'localhost',
-      user     : 'root',
-      password : 'admin',
-      database : 'autozone',
-    });
- 
-	connection.connect();
-	var queryString = 'SELECT * FROM users';	
-	connection.query(queryString, function(err, rows, fields) {
-		if (err) throw err;
+var appMySql = {
+	
+	init: function () {
+	
+		var connection = mysql.createConnection(
+		{
+		  host     : 'localhost',
+		  user     : 'root',
+		  password : 'admin',
+		  database : 'nodejs',
+		});
 		
-		messages = [];
+		connection.connect();
 		
-		for (var i in rows) {       
-			var data = 
-			{
-				name: rows[i].username
-			};		
-			messages.push(data);
-		}
-	});
-	connection.end();
-}
+		return connection;
+	},
+	
+	load:  function (_queryString)
+	{
+		var connection = this.init();
+		
+		connection.query(_queryString, function(err, rows, fields) {
+			if (err) throw err;
+			
+			data = [];
+			
+			for (var i in rows) {       
+				var _data = 
+				{
+					name: rows[i].username
+				};		
+				data.push(_data);
+			}
+		});
+		connection.end();
+	},
+	
+	insert: function (_queryString)
+	{
+		var connection = appMySql.init();
+			
+		connection.query(_queryString, function(err, info) {
+			console.log(info.insertId);
+		});
+		connection.end();
+	},
 
+	remove: function (_queryString)
+	{
+		var connection = appMySql.init();
+			
+		connection.query(_queryString, function(err, info) {
+			
+		});
+		connection.end();
+	}	
+};
+	
+		
 fu.get("/load", function (req, res)
 {		
-	res.simpleJSON(200, { "results": messages });
+	var queryString = 'select * from users order by id desc';	
+	appMySql.load(queryString);	
+	
+	setTimeout(function() {
+	  console.log("loading...");
+	  res.simpleJSON(200, { "results": data });
+	}, 200);
+		
 });
 
 fu.get("/send", function (req, res)
 {		
 	var text = qs.parse(url.parse(req.url).query).name;
+	var sqlText = '"' + text + '"';
+	var queryString = 
+		'insert into users (username) values(' + sqlText + ')';
 	
-	var data = 
+	appMySql.insert(queryString);
+			
+	var _data = 
 	{
 		name: text
 	};	
-	messages.push(data);
-	res.simpleJSON(200, { "results": messages });
+	data.push(_data);
+	res.simpleJSON(200, { "results": data });
 	
 });
 
 fu.get("/clear", function (req, res)
-{		
-	
-	messages = [];
-	Init();
-	res.simpleJSON(200, { "results": messages });
+{			
+	var queryString = 'delete from users';	
+	appMySql.remove(queryString);	
+	data = [];
+	res.simpleJSON(200, { "results": data });
+});
+
+
+fu.get("/refresh", function (req, res)
+{				
+	data = [];
+	res.simpleJSON(200, { "results": data });	
 });
 
 
